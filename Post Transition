@@ -1,0 +1,149 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_STRING_LENGTH 6
+
+struct package {
+    char* id;
+    int weight;
+};
+typedef struct package package;
+
+
+struct post_office {
+    int min_weight;
+    int max_weight;
+    struct package* packages;
+    int packages_count;
+};
+typedef struct post_office post_office;
+
+struct town {
+    char* name;
+    struct post_office* offices;
+    int offices_count;
+};
+typedef struct town town;
+void print_all_packages(struct town t) {
+    printf("%s:\n", t.name);
+    for (int i = 0; i < t.offices_count; i++) {
+        printf("\t%d:\n", i);
+        for (int j = 0; j < t.offices_count; j++) { // Iterating through packages of office i
+            // Wait, we need to iterate over packages of this specific office:
+        }
+    }
+}
+void print_all_packages_corrected(struct town t) {
+    printf("%s:\n", t.name);
+    for (int i = 0; i < t.offices_count; i++) {
+        printf("\t%d:\n", i);
+        for (int j = 0; j < t.offices[i].packages_count; j++) {
+            printf("\t\t%s\n", t.offices[i].packages[j].id);
+        }
+    }
+}
+void send_all_packages(struct town* source, int source_office_index, struct town* target, int target_office_index) {
+    struct post_office* src_off = &source->offices[source_office_index];
+    struct post_office* tgt_off = &target->offices[target_office_index];
+    int accepted_count = 0;
+    int rejected_count = 0;
+    struct package* accepted_pkgs = malloc(src_off->packages_count * sizeof(struct package));
+    struct package* rejected_pkgs = malloc(src_off->packages_count * sizeof(struct package));
+    for (int i = 0; i < src_off->packages_count; i++) {
+        int w = src_off->packages[i].weight;
+        if (w >= tgt_off->min_weight && w <= tgt_off->max_weight) {
+            accepted_pkgs[accepted_count++] = src_off->packages[i];
+        } else {
+            rejected_pkgs[rejected_count++] = src_off->packages[i];
+        }
+    }
+    if (accepted_count > 0) {
+        tgt_off->packages = realloc(tgt_off->packages, (tgt_off->packages_count + accepted_count) * sizeof(struct package));
+        for (int i = 0; i < accepted_count; i++) {
+            tgt_off->packages[tgt_off->packages_count + i] = accepted_pkgs[i];
+        }
+        tgt_off->packages_count += accepted_count;
+    }
+    free(src_off->packages);
+    if (rejected_count > 0) {
+        src_off->packages = malloc(rejected_count * sizeof(struct package));
+        for (int i = 0; i < rejected_count; i++) {
+            src_off->packages[i] = rejected_pkgs[i];
+        }
+        src_off->packages_count = rejected_count;
+    } else {
+        src_off->packages = NULL;
+        src_off->packages_count = 0;
+    }
+    
+    free(accepted_pkgs);
+    free(rejected_pkgs);
+}
+struct town town_with_most_packages(struct town* towns, int towns_count) {
+    int max_packages = -1;
+    int target_idx = 0;
+    
+    for (int i = 0; i < towns_count; i++) {
+        int current_town_pkgs = 0;
+        for (int j = 0; j < towns[i].offices_count; j++) {
+            current_town_pkgs += towns[i].offices[j].packages_count;
+        }
+        if (current_town_pkgs > max_packages) {
+            max_packages = current_town_pkgs;
+            target_idx = i;
+        }
+    }
+    return towns[target_idx];
+}
+struct town* find_town(struct town* towns, int towns_count, char* name) {
+    for (int i = 0; i < towns_count; i++) {
+        if (strcmp(towns[i].name, name) == 0) {
+            return &towns[i];
+        }
+    }
+    return NULL;
+}
+int main() {
+    int towns_count;
+    if (scanf("%d", &towns_count) != 1) return 0;
+    struct town* towns = malloc(towns_count * sizeof(struct town));
+    for (int i = 0; i < towns_count; i++) {
+        towns[i].name = malloc(MAX_STRING_LENGTH * sizeof(char));
+        scanf("%s", towns[i].name);
+        scanf("%d", &towns[i].offices_count);
+        towns[i].offices = malloc(towns[i].offices_count * sizeof(struct post_office));
+        for (int j = 0; j < towns[i].offices_count; j++) {
+            scanf("%d%d%d", &towns[i].offices[j].packages_count, &towns[i].offices[j].min_weight, &towns[i].offices[j].max_weight);
+            towns[i].offices[j].packages = malloc(towns[i].offices[j].packages_count * sizeof(struct package));
+            for (int k = 0; k < towns[i].offices[j].packages_count; k++) {
+                towns[i].offices[j].packages[k].id = malloc(MAX_STRING_LENGTH * sizeof(char));
+                scanf("%s", towns[i].offices[j].packages[k].id);
+                scanf("%d", &towns[i].offices[j].packages[k].weight);
+            }
+        }
+    }
+    int queries;
+    scanf("%d", &queries);
+    while (queries--) {
+        int type;
+        scanf("%d", &type);
+        if (type == 1) {
+            char name[MAX_STRING_LENGTH];
+            scanf("%s", name);
+            struct town* t = find_town(towns, towns_count, name);
+            print_all_packages_corrected(*t);
+        } else if (type == 2) {
+            char source_name[MAX_STRING_LENGTH];
+            char target_name[MAX_STRING_LENGTH];
+            int source_office_index, target_office_index;
+            scanf("%s%d%s%d", source_name, &source_office_index, target_name, &target_office_index);
+            struct town* source = find_town(towns, towns_count, source_name);
+            struct town* target = find_town(towns, towns_count, target_name);
+            send_all_packages(source, source_office_index, target, target_office_index);
+        } else if (type == 3) {
+            printf("Town with the most number of packages is %s\n", town_with_most_packages(towns, towns_count).name);
+        }
+    }
+    return 0;
+}
